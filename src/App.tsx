@@ -7,8 +7,13 @@ import NoteScreen from './screens/NoteScreen';
 import ProfileScreen from './screens/ProfileScreen';
 import TaskScreen from './screens/TaskScreen';
 import { createStaticNavigation } from '@react-navigation/native';
+import { Provider } from "react-redux";
+import { store } from './redux/store';
 
 const RootStack = createNativeStackNavigator({
+  screenOptions: {
+    headerShown: false,
+  },
   screens:{
     Home: {
       screen: HomeScreen,
@@ -44,7 +49,9 @@ function App() {
 
   return (
     <SafeAreaProvider>
-      <Navigation />
+      <Provider store={store}>
+        <Navigation />
+      </Provider>
     </SafeAreaProvider>
   );
 }

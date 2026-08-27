@@ -1,38 +1,42 @@
-import { View, Text, Pressable, StyleSheet } from 'react-native'
-import React from 'react'
+import React from 'react';
+import {
+  Pressable,
+  Text,
+  StyleProp,
+  ViewStyle,
+  TextStyle,
+} from 'react-native';
 
 type ButtonProps = {
   title: string;
   onPress: () => void;
-  disabled: boolean;
-  loading: boolean;
+  disabled?: boolean;
+  loading?: boolean;
+  style?: StyleProp<ViewStyle>;
+  textStyle?: StyleProp<TextStyle>;
 };
 
-const Button = ({ title, onPress, disabled, loading }: ButtonProps) => {
+const Button = ({
+  title,
+  onPress,
+  disabled = false,
+  loading = false,
+  style,
+  textStyle,
+}: ButtonProps) => {
+  const isDisabled = disabled || loading;
+
   return (
-    <Pressable 
-    onPress={onPress}
-    style={styles.button}
-    disabled={disabled}
+    <Pressable
+      onPress={onPress}
+      disabled={isDisabled}
+      style={style}
     >
-      <Text style={styles.text}>{loading ? "Loading..." : title}</Text>
+      <Text style={textStyle}>
+        {loading ? 'Loading...' : title}
+      </Text>
     </Pressable>
-  )
-}
-const styles = StyleSheet.create({
-  button: {
-    backgroundColor: "#6366F1",
-    paddingVertical: 14,
-    paddingHorizontal: 20,
-    borderRadius: 10,
-    alignItems: "center",
-  },
+  );
+};
 
-  text: {
-    color: "#FFFFFF",
-    fontSize: 16,
-    fontWeight: "600",
-  },
-});
-
-export default Button
+export default Button;
