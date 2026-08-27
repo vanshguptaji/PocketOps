@@ -1,6 +1,8 @@
 import { View, Text, StyleSheet, ScrollView, SafeAreaView, Pressable } from 'react-native';
 import React from 'react';
-import { useNavigation } from '@react-navigation/native';
+import { useDispatch, useSelector } from 'react-redux';
+import { addTodo, Todo, Priority } from '../redux/todoSlice';
+import TaskForm from '../components/TasksComponent/TasksForm';
 
 const NEON_GREEN = '#39FF14';
 const MUTED_GREEN = '#2E8B2E';
@@ -9,60 +11,6 @@ const RED = '#FF4C4C';
 const YELLOW = '#FFD23F';
 const GREEN_DOT = '#39FF14';
 
-type Priority = 'high' | 'medium' | 'low';
-
-type Task = {
-  id: string;
-  title: string;
-  completed: boolean;
-  priority: Priority;
-  dueLabel: string;
-  section: 'Today' | 'Tomorrow';
-};
-
-const MOCK_TASKS: Task[] = [
-  {
-    id: '1',
-    title: 'Complete React Native project',
-    completed: false,
-    priority: 'high',
-    dueLabel: 'Today',
-    section: 'Today',
-  },
-  {
-    id: '2',
-    title: 'Solve Binary Search',
-    completed: true,
-    priority: 'medium',
-    dueLabel: 'Today',
-    section: 'Today',
-  },
-  {
-    id: '3',
-    title: 'Review pull requests',
-    completed: false,
-    priority: 'medium',
-    dueLabel: 'Today',
-    section: 'Today',
-  },
-  {
-    id: '4',
-    title: 'Apply for frontend internship',
-    completed: false,
-    priority: 'low',
-    dueLabel: 'Aug 26',
-    section: 'Tomorrow',
-  },
-  {
-    id: '5',
-    title: 'Update resume with new project',
-    completed: false,
-    priority: 'low',
-    dueLabel: 'Aug 26',
-    section: 'Tomorrow',
-  },
-];
-
 const PRIORITY_COLORS: Record<Priority, string> = {
   high: RED,
   medium: YELLOW,
@@ -70,16 +18,19 @@ const PRIORITY_COLORS: Record<Priority, string> = {
 };
 
 const TaskScreen = () => {
-  const navigation = useNavigation();
+  const tasks = useSelector((state: any) => state.todo.todos) as Todo[];
+  const [showForm, setShowForm] = React.useState(false);
+  const dispatch = useDispatch();
 
-  const handleAddTask = () => {
-
+  const handleAddTask = (todo: Omit<Todo, 'id'>) => {
+    dispatch(addTodo(todo));
+    setShowForm(false);
   };
 
-  const totalTasks = MOCK_TASKS.length;
-  const completedTasks = MOCK_TASKS.filter(t => t.completed).length;
+  const totalTasks = tasks.length;
+  const completedTasks = tasks.filter(t => t.completed).length;
 
-  const sections: Task['section'][] = ['Today', 'Tomorrow'];
+  const sections: Todo['section'][] = ['Today', 'Tomorrow'];
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -88,7 +39,6 @@ const TaskScreen = () => {
         contentContainerStyle={styles.contentContainer}
         showsVerticalScrollIndicator={false}
       >
-        {/* Header */}
         <View style={styles.headerRow}>
           <Text style={styles.headerTitle}>TASKS</Text>
           <Text style={styles.searchIcon}>🔍</Text>
@@ -97,7 +47,6 @@ const TaskScreen = () => {
           {totalTasks} tasks · {completedTasks} completed
         </Text>
 
-        {/* Filter tabs */}
         <View style={styles.tabsRow}>
           <View style={[styles.tab, styles.tabActive]}>
             <Text style={styles.tabTextActive}>ALL</Text>
@@ -110,56 +59,55 @@ const TaskScreen = () => {
           </View>
         </View>
 
-        {/* Sections driven by mock data */}
-        {sections.map(section => {
-          const sectionTasks = MOCK_TASKS.filter(t => t.section === section);
-          if (sectionTasks.length === 0) return null;
+        {showForm ? (
+          <TaskForm onClose={() => setShowForm(false)} onSubmit={handleAddTask} />
+        ) : (
+          sections.map(section => {
+            const sectionTasks = tasks.filter(t => t.section === section);
+            if (sectionTasks.length === 0) return null;
 
-          return (
-            <View key={section}>
-              <Text style={styles.sectionLabel}>{section.toUpperCase()}</Text>
-
-              {sectionTasks.map(task => (
-                <View key={task.id} style={styles.taskCard}>
-                  <View style={styles.taskTopRow}>
-                    <Text style={[styles.checkbox, task.completed && styles.checkboxDone]}>
-                      {task.completed ? '✓' : '○'}
-                    </Text>
-                    <Text style={[styles.taskTitle, task.completed && styles.taskTitleDone]}>
-                      {task.title}
-                    </Text>
-                  </View>
-                  <View style={styles.taskMetaRow}>
-                    <View style={styles.priorityPill}>
-                      <View
-                        style={[
-                          styles.priorityDot,
-                          { backgroundColor: PRIORITY_COLORS[task.priority] },
-                        ]}
-                      />
-                      <Text style={styles.priorityText}>
-                        {task.priority.toUpperCase()}
+            return (
+              <View key={section}>
+                <Text style={styles.sectionLabel}>{section.toUpperCase()}</Text>
+                {sectionTasks.map(task => (
+                  <View key={task.id} style={styles.taskCard}>
+                    <View style={styles.taskTopRow}>
+                      <Text style={[styles.checkbox, task.completed && styles.checkboxDone]}>
+                        {task.completed ? '✓' : '○'}
+                      </Text>
+                      <Text style={[styles.taskTitle, task.completed && styles.taskTitleDone]}>
+                        {task.title}
                       </Text>
                     </View>
-                    <Text style={styles.dueText}>{task.dueLabel}</Text>
+                    <View style={styles.taskMetaRow}>
+                      <View style={styles.priorityPill}>
+                        <View
+                          style={[
+                            styles.priorityDot,
+                            { backgroundColor: PRIORITY_COLORS[task.priority] },
+                          ]}
+                        />
+                        <Text style={styles.priorityText}>{task.priority.toUpperCase()}</Text>
+                      </View>
+                      <Text style={styles.dueText}>{task.dueLabel}</Text>
+                    </View>
                   </View>
-                </View>
-              ))}
-            </View>
-          );
-        })}
+                ))}
+              </View>
+            );
+          })
+        )}
       </ScrollView>
 
-      {/* Floating add button */}
-      <Pressable
-        style={styles.fab}
-        onPress={handleAddTask}
-      >
-        <Text style={styles.fabIcon}>+</Text>
-      </Pressable>
+      {!showForm && (
+        <Pressable style={styles.fab} onPress={() => setShowForm(true)}>
+          <Text style={styles.fabIcon}>+</Text>
+        </Pressable>
+      )}
     </SafeAreaView>
   );
 };
+
 
 const styles = StyleSheet.create({
   safeArea: {
