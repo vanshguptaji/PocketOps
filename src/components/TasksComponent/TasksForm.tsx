@@ -5,18 +5,22 @@ import { Todo, Priority } from '../../redux/todoSlice';
 
 interface TaskFormProps {
   onClose: () => void;
-  onSubmit: (todo: Omit<Todo, 'id'>) => void;
+  onSubmit: (todo: Omit<Todo, 'id'> & { id?: string }) => void;
+  initialTask?: Todo;
 }
 
 const NEON_GREEN = '#39FF14';
 const MUTED_GREEN = '#2E8B2E';
 const BORDER_GRAY = '#1A1A1A';
 
-const TaskForm = ({ onClose, onSubmit }: TaskFormProps) => {
-  const [title, setTitle] = useState('');
-  const [priority, setPriority] = useState<Priority>('low');
-  const [dueLabel, setDueLabel] = useState('');
-  const [section, setSection] = useState<'Today' | 'Tomorrow'>('Today');
+const TaskForm = ({ onClose, onSubmit, initialTask }: TaskFormProps) => {
+  const isEditMode = !!initialTask;
+  const [title, setTitle] = useState(initialTask?.title ?? '');
+  const [priority, setPriority] = useState<Priority>(initialTask?.priority ?? 'low');
+  const [dueLabel, setDueLabel] = useState(initialTask?.dueLabel ?? '');
+  const [section, setSection] = useState<'Today' | 'Tomorrow'>(
+    initialTask?.section ?? 'Today'
+  );
 
   const handleSubmit = () => {
     if (!title.trim()) {
@@ -24,17 +28,18 @@ const TaskForm = ({ onClose, onSubmit }: TaskFormProps) => {
     }
 
     onSubmit({
+      ...(isEditMode ? { id: initialTask!.id } : {}),
       title: title.trim(),
       priority,
       dueLabel: dueLabel.trim(),
       section,
-      completed: false,
+      completed: initialTask?.completed ?? false,
     });
   };
 
   return (
     <View style={styles.formContainer}>
-      <Text style={styles.formTitle}>NEW TASK</Text>
+      <Text style={styles.formTitle}>{isEditMode ? 'EDIT TASK' : 'NEW TASK'}</Text>
 
       {/* Title */}
       <Text style={styles.label}>TITLE</Text>
@@ -43,7 +48,7 @@ const TaskForm = ({ onClose, onSubmit }: TaskFormProps) => {
         style={styles.input}
         value={title}
         onChangeText={setTitle}
-        placeholder="Enter task title"
+        placeholder={"Enter task title"}
         placeholderTextColor={MUTED_GREEN}
       />
 
@@ -145,7 +150,7 @@ const TaskForm = ({ onClose, onSubmit }: TaskFormProps) => {
         </Pressable>
 
         <Pressable style={styles.addButton} onPress={handleSubmit}>
-          <Text style={styles.addText}>ADD TASK</Text>
+          <Text style={styles.addText}>{isEditMode ? 'SAVE CHANGES' : 'ADD TASK'}</Text>
         </Pressable>
       </View>
     </View>

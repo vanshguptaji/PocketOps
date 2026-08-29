@@ -8,7 +8,7 @@ export interface Todo {
     completed: boolean;
     priority: Priority;
     dueLabel: string;
-    section: string;
+    section: 'Today' | 'Tomorrow';
 }
 
 interface TodoState {
@@ -24,7 +24,7 @@ interface AddTodoPayload {
     completed: boolean;
     priority: Priority;
     dueLabel: string;
-    section: string;
+    section: 'Today' | 'Tomorrow';
 }
 
 interface UpdateTodoPayload extends AddTodoPayload {

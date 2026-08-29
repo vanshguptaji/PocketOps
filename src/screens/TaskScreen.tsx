@@ -1,7 +1,16 @@
 import { View, Text, StyleSheet, ScrollView, SafeAreaView, Pressable } from 'react-native';
 import React from 'react';
 import { useDispatch, useSelector } from 'react-redux';
-import { addTodo, Todo, Priority } from '../redux/todoSlice';
+import {
+  addTodo,
+  Todo,
+  Priority,
+  removeTodo,
+  clearCompletedTodo,
+  clearAllTodos,
+  setPriority,
+  updateTodo, // TODO: make sure this exists in your todoSlice — see note below
+} from '../redux/todoSlice';
 import TaskForm from '../components/TasksComponent/TasksForm';
 
 const NEON_GREEN = '#39FF14';
@@ -17,14 +26,58 @@ const PRIORITY_COLORS: Record<Priority, string> = {
   low: GREEN_DOT,
 };
 
+const PRIORITY_CYCLE: Priority[] = ['low', 'medium', 'high'];
+
 const TaskScreen = () => {
   const tasks = useSelector((state: any) => state.todo.todos) as Todo[];
   const [showForm, setShowForm] = React.useState(false);
+  const [editingTask, setEditingTask] = React.useState<Todo | null>(null);
   const dispatch = useDispatch();
 
-  const handleAddTask = (todo: Omit<Todo, 'id'>) => {
-    dispatch(addTodo(todo));
+  const handleCloseForm = () => {
     setShowForm(false);
+    setEditingTask(null);
+  };
+  const handleFormSubmit = (todo: Omit<Todo, 'id'> & { id?: string }) => {
+    if (todo.id) {
+      dispatch(updateTodo({ ...todo, id: todo.id }));
+    } else {
+      dispatch(addTodo(todo));
+    }
+    handleCloseForm();
+  };
+
+  const handleRemoveTask = (taskId: string) => {
+    dispatch(removeTodo(taskId));
+  };
+
+  const handleEditTask = (taskId: string) => {
+    const task = tasks.find(t => t.id === taskId);
+    if (!task) return;
+    setEditingTask(task);
+    setShowForm(true);
+  };
+  const handleToggleTask = (taskId: string) => {
+    const task = tasks.find(t => t.id === taskId);
+    if (!task) return;
+    dispatch(updateTodo({ ...task, completed: !task.completed }));
+  };
+  const handleChangePriority = (taskId: string, currentPriority: Priority) => {
+    const nextIndex = (PRIORITY_CYCLE.indexOf(currentPriority) + 1) % PRIORITY_CYCLE.length;
+    dispatch(setPriority({ id: taskId, priority: PRIORITY_CYCLE[nextIndex] }));
+  };
+
+  // TODO: wire up — open a date picker to set/change due date
+  const handleChangeDueDate = (taskId: string) => {
+    // setDatePickerTaskId(taskId); setDatePickerVisible(true);
+  };
+
+  const handleClearCompleted = () => {
+    dispatch(clearCompletedTodo());
+  };
+
+  const handleClearAll = () => {
+    dispatch(clearAllTodos());
   };
 
   const totalTasks = tasks.length;
@@ -41,7 +94,6 @@ const TaskScreen = () => {
       >
         <View style={styles.headerRow}>
           <Text style={styles.headerTitle}>TASKS</Text>
-          <Text style={styles.searchIcon}>🔍</Text>
         </View>
         <Text style={styles.headerSubtitle}>
           {totalTasks} tasks · {completedTasks} completed
@@ -59,8 +111,23 @@ const TaskScreen = () => {
           </View>
         </View>
 
+        {!showForm && (
+          <View style={styles.bulkActionsRow}>
+            <Pressable style={styles.bulkActionBtn} onPress={handleClearCompleted}>
+              <Text style={styles.bulkActionText}>[ CLEAR COMPLETED ]</Text>
+            </Pressable>
+            <Pressable style={[styles.bulkActionBtn, styles.bulkActionBtnDanger]} onPress={handleClearAll}>
+              <Text style={[styles.bulkActionText, styles.bulkActionTextDanger]}>[ CLEAR ALL ]</Text>
+            </Pressable>
+          </View>
+        )}
+
         {showForm ? (
-          <TaskForm onClose={() => setShowForm(false)} onSubmit={handleAddTask} />
+          <TaskForm
+            onClose={handleCloseForm}
+            onSubmit={handleFormSubmit}
+            initialTask={editingTask ?? undefined}
+          />
         ) : (
           sections.map(section => {
             const sectionTasks = tasks.filter(t => t.section === section);
@@ -72,15 +139,21 @@ const TaskScreen = () => {
                 {sectionTasks.map(task => (
                   <View key={task.id} style={styles.taskCard}>
                     <View style={styles.taskTopRow}>
-                      <Text style={[styles.checkbox, task.completed && styles.checkboxDone]}>
-                        {task.completed ? '✓' : '○'}
-                      </Text>
+                      <Pressable onPress={() => handleToggleTask(task.id)}>
+                        <Text style={[styles.checkbox, task.completed && styles.checkboxDone]}>
+                          {task.completed ? '✓' : '○'}
+                        </Text>
+                      </Pressable>
                       <Text style={[styles.taskTitle, task.completed && styles.taskTitleDone]}>
                         {task.title}
                       </Text>
                     </View>
+
                     <View style={styles.taskMetaRow}>
-                      <View style={styles.priorityPill}>
+                      <Pressable
+                        style={styles.priorityPill}
+                        onPress={() => handleChangePriority(task.id, task.priority)}
+                      >
                         <View
                           style={[
                             styles.priorityDot,
@@ -88,8 +161,33 @@ const TaskScreen = () => {
                           ]}
                         />
                         <Text style={styles.priorityText}>{task.priority.toUpperCase()}</Text>
-                      </View>
-                      <Text style={styles.dueText}>{task.dueLabel}</Text>
+                      </Pressable>
+
+                      <Pressable
+                        style={styles.dueBtn}
+                        onPress={() => handleChangeDueDate(task.id)}
+                      >
+                        <Text style={styles.dueText}>
+                          {task.dueLabel ? task.dueLabel : 'SET DATE'}
+                        </Text>
+                      </Pressable>
+                    </View>
+
+                    <View style={styles.taskActionsRow}>
+                      <Pressable
+                        style={styles.taskActionBtn}
+                        onPress={() => handleEditTask(task.id)}
+                      >
+                        <Text style={styles.taskActionText}>EDIT</Text>
+                      </Pressable>
+                      <Pressable
+                        style={[styles.taskActionBtn, styles.taskActionBtnDanger]}
+                        onPress={() => handleRemoveTask(task.id)}
+                      >
+                        <Text style={[styles.taskActionText, styles.taskActionTextDanger]}>
+                          DELETE
+                        </Text>
+                      </Pressable>
                     </View>
                   </View>
                 ))}
@@ -150,7 +248,7 @@ const styles = StyleSheet.create({
   tabsRow: {
     flexDirection: 'row',
     gap: 10,
-    marginBottom: 24,
+    marginBottom: 16,
   },
   tab: {
     flex: 1,
@@ -177,6 +275,33 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: 'bold',
     letterSpacing: 1,
+  },
+  bulkActionsRow: {
+    flexDirection: 'row',
+    gap: 10,
+    marginBottom: 24,
+  },
+  bulkActionBtn: {
+    flex: 1,
+    borderWidth: 1,
+    borderColor: MUTED_GREEN,
+    borderRadius: 4,
+    paddingVertical: 8,
+    alignItems: 'center',
+    backgroundColor: '#000000',
+  },
+  bulkActionBtnDanger: {
+    borderColor: RED,
+  },
+  bulkActionText: {
+    color: MUTED_GREEN,
+    fontFamily: 'Courier',
+    fontSize: 10,
+    fontWeight: 'bold',
+    letterSpacing: 0.5,
+  },
+  bulkActionTextDanger: {
+    color: RED,
   },
   sectionLabel: {
     color: NEON_GREEN,
@@ -224,11 +349,17 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingLeft: 24,
+    marginBottom: 12,
   },
   priorityPill: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
+    borderWidth: 1,
+    borderColor: BORDER_GRAY,
+    borderRadius: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
   },
   priorityDot: {
     width: 8,
@@ -241,10 +372,46 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: 'bold',
   },
+  dueBtn: {
+    borderWidth: 1,
+    borderColor: BORDER_GRAY,
+    borderRadius: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+  },
   dueText: {
     color: MUTED_GREEN,
     fontFamily: 'Courier',
     fontSize: 11,
+  },
+  taskActionsRow: {
+    flexDirection: 'row',
+    gap: 10,
+    paddingLeft: 24,
+    borderTopWidth: 1,
+    borderTopColor: BORDER_GRAY,
+    paddingTop: 12,
+  },
+  taskActionBtn: {
+    flex: 1,
+    borderWidth: 1,
+    borderColor: MUTED_GREEN,
+    borderRadius: 4,
+    paddingVertical: 8,
+    alignItems: 'center',
+  },
+  taskActionBtnDanger: {
+    borderColor: RED,
+  },
+  taskActionText: {
+    color: MUTED_GREEN,
+    fontFamily: 'Courier',
+    fontSize: 11,
+    fontWeight: 'bold',
+    letterSpacing: 0.5,
+  },
+  taskActionTextDanger: {
+    color: RED,
   },
   fab: {
     position: 'absolute',
