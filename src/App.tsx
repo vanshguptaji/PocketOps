@@ -9,6 +9,7 @@ import TaskScreen from './screens/TaskScreen';
 import { createStaticNavigation } from '@react-navigation/native';
 import { Provider } from "react-redux";
 import { store } from './redux/store';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 
 const RootStack = createNativeStackNavigator({
   screenOptions: {
@@ -49,9 +50,11 @@ function App() {
 
   return (
     <SafeAreaProvider>
-      <Provider store={store}>
-        <Navigation />
-      </Provider>
+      <GestureHandlerRootView>
+        <Provider store={store}>
+          <Navigation />
+        </Provider>
+      </GestureHandlerRootView>
     </SafeAreaProvider>
   );
 }

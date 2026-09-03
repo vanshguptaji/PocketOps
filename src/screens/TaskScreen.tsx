@@ -1,4 +1,15 @@
-import { View, Text, StyleSheet, ScrollView, SafeAreaView, Pressable } from 'react-native';
+import {
+  View,
+  Text,
+  StyleSheet,
+  ScrollView,
+  SafeAreaView,
+  Pressable,
+  TextInput,
+  FlatList,
+  Dimensions,
+  Vibration,
+} from 'react-native';
 import React from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import {
@@ -12,6 +23,11 @@ import {
   updateTodo, // TODO: make sure this exists in your todoSlice — see note below
 } from '../redux/todoSlice';
 import TaskForm from '../components/TasksComponent/TasksForm';
+import ReanimatedSwipeable from 'react-native-gesture-handler/ReanimatedSwipeable';
+import Reanimated, {
+  SharedValue,
+  useAnimatedStyle,
+} from 'react-native-reanimated';
 
 const NEON_GREEN = '#39FF14';
 const MUTED_GREEN = '#2E8B2E';
@@ -28,11 +44,29 @@ const PRIORITY_COLORS: Record<Priority, string> = {
 
 const PRIORITY_CYCLE: Priority[] = ['low', 'medium', 'high'];
 
+type FilterTab = 'all' | 'active' | 'done';
+
+// Splits an array into chunks of `size` — used to page 3 tasks per horizontal "page"
+function chunkArray<T>(arr: T[], size: number): T[][] {
+  const chunks: T[][] = [];
+  for (let i = 0; i < arr.length; i += size) {
+    chunks.push(arr.slice(i, i + size));
+  }
+  return chunks;
+}
+
 const TaskScreen = () => {
   const tasks = useSelector((state: any) => state.todo.todos) as Todo[];
   const [showForm, setShowForm] = React.useState(false);
   const [editingTask, setEditingTask] = React.useState<Todo | null>(null);
+  const [filter, setFilter] = React.useState<FilterTab>('all');
+  const [searchText, setSearchText] = React.useState('');
+  const [isSearchFocused, setIsSearchFocused] = React.useState(false);
   const dispatch = useDispatch();
+  const { width: SCREEN_WIDTH } = Dimensions.get('window');
+  // Width of a single "page" inside the horizontal pager — matches the
+  // container's horizontal padding (20 on each side) from contentContainer
+  const PAGE_WIDTH = SCREEN_WIDTH - 40;
 
   const handleCloseForm = () => {
     setShowForm(false);
@@ -63,7 +97,8 @@ const TaskScreen = () => {
     dispatch(updateTodo({ ...task, completed: !task.completed }));
   };
   const handleChangePriority = (taskId: string, currentPriority: Priority) => {
-    const nextIndex = (PRIORITY_CYCLE.indexOf(currentPriority) + 1) % PRIORITY_CYCLE.length;
+    const nextIndex =
+      (PRIORITY_CYCLE.indexOf(currentPriority) + 1) % PRIORITY_CYCLE.length;
     dispatch(setPriority({ id: taskId, priority: PRIORITY_CYCLE[nextIndex] }));
   };
 
@@ -80,10 +115,201 @@ const TaskScreen = () => {
     dispatch(clearAllTodos());
   };
 
+  const handleSearchChange = (text: string) => {
+    setSearchText(text);
+  };
+  const handleFocusOff = () => {
+    setIsSearchFocused(false);
+    setSearchText('');
+  };
+  const handleBlur = () => {
+    //something
+  };
+
+  const filteredTasks = React.useMemo(() => {
+    let result = tasks;
+
+    if (filter === 'active') result = result.filter(t => !t.completed);
+    else if (filter === 'done') result = result.filter(t => t.completed);
+
+    if (searchText.trim()) {
+      const query = searchText.trim().toLowerCase();
+      result = result.filter(t => t.title.toLowerCase().includes(query));
+    }
+
+    return result;
+  }, [tasks, filter, searchText]);
+
   const totalTasks = tasks.length;
   const completedTasks = tasks.filter(t => t.completed).length;
 
   const sections: Todo['section'][] = ['Today', 'Tomorrow'];
+
+  const renderDeleteAction =
+    (taskId: string) =>
+    (prog: SharedValue<number>, drag: SharedValue<number>) => {
+      const styleAnimation = useAnimatedStyle(() => ({
+        transform: [{ translateX: drag.value + 90 }],
+      }));
+
+      return (
+        <Reanimated.View style={[styles.deleteAction, styleAnimation]}>
+          <Pressable
+            style={styles.deleteActionInner}
+            onPress={() => handleRemoveTask(taskId)}
+            hitSlop={8}
+          >
+            <Text style={styles.deleteActionGlyph}>✕</Text>
+            <Text style={styles.deleteActionText}>DELETE</Text>
+          </Pressable>
+        </Reanimated.View>
+      );
+    };
+
+  // const renderTaskCard = (task: Todo) => (
+  //   <View key={task.id} style={styles.taskCard}>
+  //     <View style={styles.taskTopRow}>
+  //       <Pressable onPress={() => handleToggleTask(task.id)}>
+  //         <Text
+  //           style={[
+  //             styles.checkbox,
+  //             task.completed && styles.checkboxDone,
+  //           ]}
+  //         >
+  //           {task.completed ? '✓' : '○'}
+  //         </Text>
+  //       </Pressable>
+  //       <Text
+  //         style={[
+  //           styles.taskTitle,
+  //           task.completed && styles.taskTitleDone,
+  //         ]}
+  //       >
+  //         {task.title}
+  //       </Text>
+  //     </View>
+
+  //     <View style={styles.taskMetaRow}>
+  //       <Pressable
+  //         style={styles.priorityPill}
+  //         onPress={() => handleChangePriority(task.id, task.priority)}
+  //       >
+  //         <View
+  //           style={[
+  //             styles.priorityDot,
+  //             { backgroundColor: PRIORITY_COLORS[task.priority] },
+  //           ]}
+  //         />
+  //         <Text style={styles.priorityText}>
+  //           {task.priority.toUpperCase()}
+  //         </Text>
+  //       </Pressable>
+
+  //       <Pressable
+  //         style={styles.dueBtn}
+  //         onPress={() => handleChangeDueDate(task.id)}
+  //       >
+  //         <Text style={styles.dueText}>
+  //           {task.dueLabel ? task.dueLabel : 'SET DATE'}
+  //         </Text>
+  //       </Pressable>
+  //     </View>
+
+  //     <View style={styles.taskActionsRow}>
+  //       <Pressable
+  //         style={styles.taskActionBtn}
+  //         onPress={() => handleEditTask(task.id)}
+  //       >
+  //         <Text style={styles.taskActionText}>EDIT</Text>
+  //       </Pressable>
+  //       <Pressable
+  //         style={[styles.taskActionBtn, styles.taskActionBtnDanger]}
+  //         onPress={() => handleRemoveTask(task.id)}
+  //       >
+  //         <Text style={[styles.taskActionText, styles.taskActionTextDanger]}>
+  //           DELETE
+  //         </Text>
+  //       </Pressable>
+  //     </View>
+  //   </View>
+  // );
+
+  const renderTaskCard = (task: Todo) => (
+    <ReanimatedSwipeable
+      key={task.id}
+      containerStyle={styles.swipeableContainer}
+      friction={2}
+      rightThreshold={90}
+      overshootRight={false}
+      renderRightActions={renderDeleteAction(task.id)}
+      onSwipeableOpen={direction => {
+        if (direction === 'right') {
+          handleRemoveTask(task.id);
+        }
+      }}
+    >
+      <Pressable
+      onLongPress={() => {Vibration.vibrate(10); handleEditTask(task.id);}}
+      delayLongPress={400}
+      style={({ pressed }) => [
+        styles.taskCard,
+        pressed && styles.taskCardPressed,
+      ]}
+    >
+      <View style={styles.taskCard}>
+        <View style={styles.taskTopRow}>
+          <Pressable onPress={() => handleToggleTask(task.id)}>
+            <Text
+              style={[styles.checkbox, task.completed && styles.checkboxDone]}
+            >
+              {task.completed ? '✓' : '○'}
+            </Text>
+          </Pressable>
+          <Text
+            style={[styles.taskTitle, task.completed && styles.taskTitleDone]}
+          >
+            {task.title}
+          </Text>
+        </View>
+
+        <View style={styles.taskMetaRow}>
+          <Pressable
+            style={styles.priorityPill}
+            onPress={() => handleChangePriority(task.id, task.priority)}
+          >
+            <View
+              style={[
+                styles.priorityDot,
+                { backgroundColor: PRIORITY_COLORS[task.priority] },
+              ]}
+            />
+            <Text style={styles.priorityText}>
+              {task.priority.toUpperCase()}
+            </Text>
+          </Pressable>
+
+          <Pressable
+            style={styles.dueBtn}
+            onPress={() => handleChangeDueDate(task.id)}
+          >
+            <Text style={styles.dueText}>
+              {task.dueLabel ? task.dueLabel : 'SET DATE'}
+            </Text>
+          </Pressable>
+        </View>
+
+        <View style={styles.taskActionsRow}>
+          <Pressable
+            style={styles.taskActionBtn}
+            onPress={() => handleEditTask(task.id)}
+          >
+            <Text style={styles.taskActionText}>EDIT</Text>
+          </Pressable>
+        </View>
+      </View>
+      </Pressable>
+    </ReanimatedSwipeable>
+  );
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -91,6 +317,7 @@ const TaskScreen = () => {
         style={styles.container}
         contentContainerStyle={styles.contentContainer}
         showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
       >
         <View style={styles.headerRow}>
           <Text style={styles.headerTitle}>TASKS</Text>
@@ -98,28 +325,98 @@ const TaskScreen = () => {
         <Text style={styles.headerSubtitle}>
           {totalTasks} tasks · {completedTasks} completed
         </Text>
+        <View
+          style={[
+            styles.searchWrapper,
+            isSearchFocused && styles.searchWrapperFocused,
+          ]}
+        >
+          <Text style={styles.searchPrompt}>{'>'}</Text>
+          <TextInput
+            style={styles.searchInput}
+            placeholder="search tasks..."
+            placeholderTextColor={MUTED_GREEN}
+            value={searchText}
+            onChangeText={handleSearchChange}
+            onFocus={() => setIsSearchFocused(true)}
+            returnKeyLabel="Search"
+            submitBehavior="blurAndSubmit"
+            onBlur={handleBlur}
+            autoCapitalize="none"
+            autoCorrect={false}
+            selectionColor={NEON_GREEN}
+          />
+          {searchText.length > 0 && (
+            <Pressable onPress={() => handleFocusOff()} hitSlop={8}>
+              <Text style={styles.searchClear}>×</Text>
+            </Pressable>
+          )}
+        </View>
 
         <View style={styles.tabsRow}>
-          <View style={[styles.tab, styles.tabActive]}>
-            <Text style={styles.tabTextActive}>ALL</Text>
-          </View>
-          <View style={styles.tab}>
-            <Text style={styles.tabText}>ACTIVE</Text>
-          </View>
-          <View style={styles.tab}>
-            <Text style={styles.tabText}>DONE</Text>
-          </View>
+          <Pressable
+            style={[styles.tab, filter === 'all' && styles.tabActive]}
+            onPress={() => setFilter('all')}
+          >
+            <Text
+              style={filter === 'all' ? styles.tabTextActive : styles.tabText}
+            >
+              ALL
+            </Text>
+          </Pressable>
+          <Pressable
+            style={[styles.tab, filter === 'active' && styles.tabActive]}
+            onPress={() => setFilter('active')}
+          >
+            <Text
+              style={
+                filter === 'active' ? styles.tabTextActive : styles.tabText
+              }
+            >
+              ACTIVE
+            </Text>
+          </Pressable>
+          <Pressable
+            style={[styles.tab, filter === 'done' && styles.tabActive]}
+            onPress={() => setFilter('done')}
+          >
+            <Text
+              style={filter === 'done' ? styles.tabTextActive : styles.tabText}
+            >
+              DONE
+            </Text>
+          </Pressable>
         </View>
 
         {!showForm && (
           <View style={styles.bulkActionsRow}>
-            <Pressable style={styles.bulkActionBtn} onPress={handleClearCompleted}>
+            <Pressable
+              style={styles.bulkActionBtn}
+              onPress={handleClearCompleted}
+            >
               <Text style={styles.bulkActionText}>[ CLEAR COMPLETED ]</Text>
             </Pressable>
-            <Pressable style={[styles.bulkActionBtn, styles.bulkActionBtnDanger]} onPress={handleClearAll}>
-              <Text style={[styles.bulkActionText, styles.bulkActionTextDanger]}>[ CLEAR ALL ]</Text>
+            <Pressable
+              style={[styles.bulkActionBtn, styles.bulkActionBtnDanger]}
+              onPress={handleClearAll}
+            >
+              <Text
+                style={[styles.bulkActionText, styles.bulkActionTextDanger]}
+              >
+                [ CLEAR ALL ]
+              </Text>
             </Pressable>
           </View>
+        )}
+
+        {!showForm && filteredTasks.length === 0 && (
+          <Text style={styles.emptyStateText}>
+            {filter === 'done'
+              ? 'NO COMPLETED TASKS'
+              : filter === 'active'
+              ? 'NO ACTIVE TASKS'
+              : 'NO TASKS YET'}
+          </Text>
         )}
 
         {showForm ? (
@@ -130,67 +427,26 @@ const TaskScreen = () => {
           />
         ) : (
           sections.map(section => {
-            const sectionTasks = tasks.filter(t => t.section === section);
-            if (sectionTasks.length === 0) return null;
+            const tasksFiltered = filteredTasks.filter(
+              t => t.section === section,
+            );
+            if (tasksFiltered.length === 0) return null;
+            const pages = chunkArray(tasksFiltered, 3);
 
             return (
               <View key={section}>
                 <Text style={styles.sectionLabel}>{section.toUpperCase()}</Text>
-                {sectionTasks.map(task => (
-                  <View key={task.id} style={styles.taskCard}>
-                    <View style={styles.taskTopRow}>
-                      <Pressable onPress={() => handleToggleTask(task.id)}>
-                        <Text style={[styles.checkbox, task.completed && styles.checkboxDone]}>
-                          {task.completed ? '✓' : '○'}
-                        </Text>
-                      </Pressable>
-                      <Text style={[styles.taskTitle, task.completed && styles.taskTitleDone]}>
-                        {task.title}
-                      </Text>
+                <FlatList
+                  data={pages}
+                  horizontal
+                  pagingEnabled
+                  keyExtractor={(_, index) => `${section}-page-${index}`}
+                  renderItem={({ item: pageItems }) => (
+                    <View style={{ width: PAGE_WIDTH }}>
+                      {pageItems.map(task => renderTaskCard(task))}
                     </View>
-
-                    <View style={styles.taskMetaRow}>
-                      <Pressable
-                        style={styles.priorityPill}
-                        onPress={() => handleChangePriority(task.id, task.priority)}
-                      >
-                        <View
-                          style={[
-                            styles.priorityDot,
-                            { backgroundColor: PRIORITY_COLORS[task.priority] },
-                          ]}
-                        />
-                        <Text style={styles.priorityText}>{task.priority.toUpperCase()}</Text>
-                      </Pressable>
-
-                      <Pressable
-                        style={styles.dueBtn}
-                        onPress={() => handleChangeDueDate(task.id)}
-                      >
-                        <Text style={styles.dueText}>
-                          {task.dueLabel ? task.dueLabel : 'SET DATE'}
-                        </Text>
-                      </Pressable>
-                    </View>
-
-                    <View style={styles.taskActionsRow}>
-                      <Pressable
-                        style={styles.taskActionBtn}
-                        onPress={() => handleEditTask(task.id)}
-                      >
-                        <Text style={styles.taskActionText}>EDIT</Text>
-                      </Pressable>
-                      <Pressable
-                        style={[styles.taskActionBtn, styles.taskActionBtnDanger]}
-                        onPress={() => handleRemoveTask(task.id)}
-                      >
-                        <Text style={[styles.taskActionText, styles.taskActionTextDanger]}>
-                          DELETE
-                        </Text>
-                      </Pressable>
-                    </View>
-                  </View>
-                ))}
+                  )}
+                />
               </View>
             );
           })
@@ -205,7 +461,6 @@ const TaskScreen = () => {
     </SafeAreaView>
   );
 };
-
 
 const styles = StyleSheet.create({
   safeArea: {
@@ -235,8 +490,45 @@ const styles = StyleSheet.create({
     textShadowRadius: 8,
     textShadowOffset: { width: 0, height: 0 },
   },
-  searchIcon: {
+  searchWrapper: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: BORDER_GRAY,
+    borderRadius: 4,
+    backgroundColor: '#0A0A0A',
+    paddingHorizontal: 12,
+    height: 42,
+    marginBottom: 16,
+  },
+  searchWrapperFocused: {
+    borderColor: NEON_GREEN,
+    shadowColor: NEON_GREEN,
+    shadowOpacity: 0.4,
+    shadowRadius: 6,
+    shadowOffset: { width: 0, height: 0 },
+  },
+  searchPrompt: {
+    color: NEON_GREEN,
+    fontFamily: 'Courier',
+    fontSize: 14,
+    fontWeight: 'bold',
+    marginRight: 8,
+  },
+  searchInput: {
+    flex: 1,
+    color: '#DDDDDD',
+    fontFamily: 'Courier',
+    fontSize: 13,
+    padding: 0,
+    height: '100%',
+  },
+  searchClear: {
+    color: MUTED_GREEN,
+    fontFamily: 'Courier',
     fontSize: 18,
+    fontWeight: 'bold',
+    paddingHorizontal: 4,
   },
   headerSubtitle: {
     color: MUTED_GREEN,
@@ -318,7 +610,7 @@ const styles = StyleSheet.create({
     borderColor: BORDER_GRAY,
     borderRadius: 4,
     padding: 16,
-    marginBottom: 12,
+    // marginBottom: 12,
   },
   taskTopRow: {
     flexDirection: 'row',
@@ -413,6 +705,14 @@ const styles = StyleSheet.create({
   taskActionTextDanger: {
     color: RED,
   },
+  emptyStateText: {
+    color: MUTED_GREEN,
+    fontFamily: 'Courier',
+    fontSize: 12,
+    textAlign: 'center',
+    marginTop: 40,
+    letterSpacing: 0.5,
+  },
   fab: {
     position: 'absolute',
     bottom: 40,
@@ -434,6 +734,48 @@ const styles = StyleSheet.create({
     fontSize: 28,
     fontWeight: 'bold',
     lineHeight: 30,
+  },
+  swipeableContainer: {
+    marginBottom: 12,
+    borderRadius: 4,
+    overflow: 'hidden',
+  },
+  deleteAction: {
+    width: 90,
+    backgroundColor: '#1A0000',
+    borderWidth: 1,
+    borderColor: RED,
+    borderRadius: 4,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginLeft: -1, // sits flush against the card's right edge
+  },
+  deleteActionInner: {
+    flex: 1,
+    width: '100%',
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: 4,
+  },
+  deleteActionGlyph: {
+    color: RED,
+    fontFamily: 'Courier',
+    fontSize: 16,
+    fontWeight: 'bold',
+    textShadowColor: RED,
+    textShadowRadius: 6,
+    textShadowOffset: { width: 0, height: 0 },
+  },
+  deleteActionText: {
+    color: RED,
+    fontFamily: 'Courier',
+    fontSize: 10,
+    fontWeight: 'bold',
+    letterSpacing: 1,
+  },
+  taskCardPressed: {
+    borderColor: NEON_GREEN,
+    backgroundColor: '#0A0A0A',
   },
 });
 
