@@ -1,96 +1,40 @@
-import React, { useState } from 'react'
+import React, { useCallback, useState } from 'react'
 import {
   View,
   Text,
-  ScrollView,
+  FlatList,
   TouchableOpacity,
+  Pressable,
   StyleSheet,
   SafeAreaView,
+  Modal,
+  Vibration,
+  ListRenderItemInfo,
 } from 'react-native'
-import Navigation from '../components/Nvigation'
+import { useSelector, useDispatch } from 'react-redux'
+import ReanimatedSwipeable from 'react-native-gesture-handler/ReanimatedSwipeable'
+import Reanimated, {
+  SharedValue,
+  useAnimatedStyle,
+} from 'react-native-reanimated'
+import HabitForm from '../components/HabitsComponent/HabitForm'
+import {
+  Habit,
+  toggleHabit,
+  addHabit,
+  editHabit,
+  removeHabit,
+} from '../redux/habitSlice'
+import type { RootState } from '../redux/store'
 
 const GREEN = '#39FF14'
 const GREEN_DIM = '#1F7A0E'
-const GREEN_FAINT = 'rgba(57, 255, 20, 0.15)'
+const RED = '#FF4C4C'
 const BG = '#000000'
 const BORDER = 'rgba(57, 255, 20, 0.35)'
+const CARD_HEIGHT = 120 // includes swipeableContainer marginBottom — remeasure if styles change
 
-type Habit = {
-  id: string
-  name: string
-  done: boolean
-  streak: number
-  best: number
-  frequency: string
-  time?: string
-  segments: boolean[] 
-}
-
-const INITIAL_HABITS: Habit[] = [
-  {
-    id: '1',
-    name: '05:00AM_WAKEUP',
-    done: true,
-    streak: 14,
-    best: 21,
-    frequency: '7X/WEEK',
-    time: '05:00',
-    segments: Array(21).fill(true),
-  },
-  {
-    id: '2',
-    name: '45MIN_DEEP_WORK',
-    done: false,
-    streak: 3,
-    best: 12,
-    frequency: '5X/WEEK',
-    time: '09:30',
-    segments: [
-      true, true, true, true, false, false, false,
-      true, true, true, true, true, true, false,
-      false, false, false, false, false, false, false,
-    ],
-  },
-  {
-    id: '3',
-    name: 'HYDRATE_2L',
-    done: false,
-    streak: 28,
-    best: 28,
-    frequency: '7X/WEEK',
-    segments: Array(21).fill(true),
-  },
-  {
-    id: '4',
-    name: 'READ_20_PAGES',
-    done: false,
-    streak: 7,
-    best: 9,
-    frequency: '7X/WEEK',
-    time: '21:00',
-    segments: [
-      true, true, true, true, false, false, false,
-      true, false, false, false, false, false, false,
-      true, true, false, false, false, false, false,
-    ],
-  },
-  {
-    id: '5',
-    name: 'EVENING_RUN_5K',
-    done: false,
-    streak: 5,
-    best: 15,
-    frequency: '3X/WEEK',
-    time: '18:00',
-    segments: [
-      true, true, true, false, false, false, false,
-      false, true, false, false, false, false, false,
-      true, true, true, false, false, false, false,
-    ],
-  },
-]
-
-const SegmentBar = ({ segments }: { segments: boolean[] }) => (
+const SegmentBar = React.memo(({ segments }: { segments: boolean[] }) => (
   <View style={styles.segmentRow}>
     {segments.map((filled, i) => (
       <View
@@ -102,93 +46,214 @@ const SegmentBar = ({ segments }: { segments: boolean[] }) => (
       />
     ))}
   </View>
-)
+))
 
-const HabitCard = ({
-  habit,
-  onToggle,
-}: {
-  habit: Habit
-  onToggle: (id: string) => void
-}) => (
-  <View style={styles.card}>
-    <View style={styles.cardTopRow}>
-      <TouchableOpacity
-        style={styles.checkboxRow}
-        onPress={() => onToggle(habit.id)}
-        activeOpacity={0.7}
-      >
-        <Text style={[styles.checkbox, habit.done && styles.checkboxDone]}>
-          [{habit.done ? 'X' : ' '}]
-        </Text>
-        <Text style={styles.habitName}>{habit.name}</Text>
-      </TouchableOpacity>
+// Same delete-action pattern as TaskScreen: renderRightActions gets (progress, drag)
+// shared values from reanimated-gesture-handler; we translate based on drag.value.
+const renderDeleteAction =
+  (habitId: string, onDelete: (id: string) => void) =>
+  (prog: SharedValue<number>, drag: SharedValue<number>) => {
+    const styleAnimation = useAnimatedStyle(() => ({
+      transform: [{ translateX: drag.value + 90 }],
+    }))
 
-      <View style={styles.cardTopRight}>
-        <Text style={styles.streakText}>{habit.streak}d</Text>
-        <TouchableOpacity style={styles.editButton} activeOpacity={0.6}>
-          <Text style={styles.editButtonText}>EDIT</Text>
-        </TouchableOpacity>
-      </View>
-    </View>
-
-    <SegmentBar segments={habit.segments} />
-
-    <View style={styles.cardFooter}>
-      <Text style={styles.footerText}>BEST {habit.best}D</Text>
-      <Text style={styles.footerText}>{habit.frequency}</Text>
-      {habit.time && (
-        <Text style={styles.footerText}>⏰ {habit.time}</Text>
-      )}
-    </View>
-  </View>
-)
-
-const HabitScreen = () => {
-  const [habits, setHabits] = useState<Habit[]>(INITIAL_HABITS)
-  const [time] = useState('09:47:40')
-
-  const toggleHabit = (id: string) => {
-    setHabits(prev =>
-      prev.map(h => (h.id === id ? { ...h, done: !h.done } : h)),
+    return (
+      <Reanimated.View style={[styles.deleteAction, styleAnimation]}>
+        <Pressable
+          style={styles.deleteActionInner}
+          onPress={() => onDelete(habitId)}
+          hitSlop={8}
+        >
+          <Text style={styles.deleteActionGlyph}>✕</Text>
+          <Text style={styles.deleteActionText}>DELETE</Text>
+        </Pressable>
+      </Reanimated.View>
     )
   }
 
+type CardProps = {
+  habit: Habit
+  onToggle: (id: string) => void
+  onEdit: (habit: Habit) => void
+  onDelete: (id: string) => void
+}
+
+const HabitCard = React.memo(
+  ({ habit, onToggle, onEdit, onDelete }: CardProps) => (
+    <ReanimatedSwipeable
+      containerStyle={styles.swipeableContainer}
+      friction={2}
+      rightThreshold={90}
+      overshootRight={false}
+      renderRightActions={renderDeleteAction(habit.id, onDelete)}
+      onSwipeableOpen={direction => {
+        if (direction === 'right') {
+          Vibration.vibrate(10)
+          onDelete(habit.id)
+        }
+      }}
+    >
+      <View style={styles.card}>
+        <View style={styles.cardTopRow}>
+          <TouchableOpacity
+            style={styles.checkboxRow}
+            onPress={() => onToggle(habit.id)}
+            activeOpacity={0.7}
+          >
+            <Text style={[styles.checkbox, habit.done && styles.checkboxDone]}>
+              [{habit.done ? 'X' : ' '}]
+            </Text>
+            <Text style={styles.habitName}>{habit.title}</Text>
+          </TouchableOpacity>
+
+          <View style={styles.cardTopRight}>
+            <Text style={styles.streakText}>{habit.streak}d</Text>
+            <TouchableOpacity
+              style={styles.editButton}
+              activeOpacity={0.6}
+              onPress={() => onEdit(habit)}
+            >
+              <Text style={styles.editButtonText}>EDIT</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+
+        <SegmentBar segments={habit.segments} />
+
+        <View style={styles.cardFooter}>
+          <Text style={styles.footerText}>BEST {habit.best}D</Text>
+          <Text style={styles.footerText}>{habit.frequency}</Text>
+          {habit.time && <Text style={styles.footerText}>⏰ {habit.time}</Text>}
+        </View>
+      </View>
+    </ReanimatedSwipeable>
+  ),
+  (prev, next) =>
+    prev.habit === next.habit &&
+    prev.onToggle === next.onToggle &&
+    prev.onEdit === next.onEdit &&
+    prev.onDelete === next.onDelete,
+)
+
+const HabitScreen = () => {
+  const habits = useSelector((state: RootState) => state.habit.habits)
+  const dispatch = useDispatch()
+  const [time] = useState('09:47:40')
+
+  const [formVisible, setFormVisible] = useState(false)
+  const [editingHabit, setEditingHabit] = useState<Habit | undefined>(undefined)
+
+  const doneCount = habits.filter((h: Habit) => h.done).length
+
+  const handleToggle = useCallback((id: string) => dispatch(toggleHabit(id)), [dispatch])
+
+  const handleOpenEdit = useCallback((habit: Habit) => {
+    setEditingHabit(habit)
+    setFormVisible(true)
+  }, [])
+
+  const handleOpenNew = useCallback(() => {
+    setEditingHabit(undefined)
+    setFormVisible(true)
+  }, [])
+
+  const handleCloseForm = useCallback(() => {
+    setFormVisible(false)
+    setEditingHabit(undefined)
+  }, [])
+
+  const handleSubmit = useCallback(
+    (habit: Omit<Habit, 'id'> & { id?: string }) => {
+      if (habit.id) {
+        dispatch(editHabit(habit as Habit))
+      } else {
+        dispatch(addHabit(habit))
+      }
+      setFormVisible(false)
+      setEditingHabit(undefined)
+    },
+    [dispatch],
+  )
+
+  const handleDelete = useCallback((id: string) => dispatch(removeHabit(id)), [dispatch])
+
+  const renderItem = useCallback(
+    ({ item }: ListRenderItemInfo<Habit>) => (
+      <HabitCard
+        habit={item}
+        onToggle={handleToggle}
+        onEdit={handleOpenEdit}
+        onDelete={handleDelete}
+      />
+    ),
+    [handleToggle, handleOpenEdit, handleDelete],
+  )
+
+  const keyExtractor = useCallback((item: Habit) => item.id, [])
+
+  const getItemLayout = useCallback(
+    (_: ArrayLike<Habit> | null | undefined, index: number) => ({
+      length: CARD_HEIGHT,
+      offset: CARD_HEIGHT * index,
+      index,
+    }),
+    [],
+  )
+
   return (
     <SafeAreaView style={styles.container}>
-      {/* Header */}
       <View style={styles.header}>
         <View style={styles.headerTopRow}>
           <Text style={styles.headerTitle}>CORE_OS // V4.2</Text>
           <Text style={styles.headerTime}>{time}</Text>
         </View>
-        <Text style={styles.headerStats}>
-          CPU 12%   MEM 4.2/16GB   SYNC OK
-        </Text>
+        <Text style={styles.headerStats}>CPU 12%   MEM 4.2/16GB   SYNC OK</Text>
       </View>
 
-      {/* Section title */}
       <View style={styles.sectionRow}>
         <View style={styles.sectionTitleRow}>
           <View style={styles.dot} />
           <Text style={styles.sectionTitle}>ACTIVE_HABITS.LOG</Text>
         </View>
-        <Text style={styles.sectionCount}>1/{habits.length}</Text>
+        <Text style={styles.sectionCount}>
+          {doneCount}/{habits.length}
+        </Text>
       </View>
 
-      <ScrollView
+      <FlatList
         style={styles.scroll}
         contentContainerStyle={styles.scrollContent}
+        data={habits}
+        renderItem={renderItem}
+        keyExtractor={keyExtractor}
+        getItemLayout={getItemLayout}
         showsVerticalScrollIndicator={false}
-      >
-        <TouchableOpacity style={styles.newHabitButton} activeOpacity={0.6}>
-          <Text style={styles.newHabitText}>+ NEW HABIT</Text>
-        </TouchableOpacity>
+        removeClippedSubviews
+        initialNumToRender={8}
+        maxToRenderPerBatch={8}
+        windowSize={7}
+        updateCellsBatchingPeriod={50}
+        ListHeaderComponent={
+          <TouchableOpacity
+            style={styles.newHabitButton}
+            activeOpacity={0.6}
+            onPress={handleOpenNew}
+          >
+            <Text style={styles.newHabitText}>+ NEW HABIT</Text>
+          </TouchableOpacity>
+        }
+        ListEmptyComponent={<Text style={styles.footerText}>NO HABITS TRACKED YET</Text>}
+      />
 
-        {habits.map(h => (
-          <HabitCard key={h.id} habit={h} onToggle={toggleHabit} />
-        ))}
-      </ScrollView>
+      <Modal visible={formVisible} animationType="slide" transparent onRequestClose={handleCloseForm}>
+        <View style={styles.modalOverlay}>
+          <HabitForm
+            onClose={handleCloseForm}
+            onSubmit={handleSubmit}
+            initialHabit={editingHabit}
+          />
+        </View>
+      </Modal>
     </SafeAreaView>
   )
 }
@@ -378,6 +443,48 @@ const styles = StyleSheet.create({
     height: 14,
     backgroundColor: GREEN,
   },
+  swipeableContainer: {
+    marginBottom: 12,
+    borderRadius: 4,
+    overflow: 'hidden',
+  },
+  deleteAction: {
+    width: 90,
+    backgroundColor: '#1A0000',
+    borderWidth: 1,
+    borderColor: RED,
+    borderRadius: 4,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginLeft: -1,
+  },
+  deleteActionInner: {
+    flex: 1,
+    width: '100%',
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: 4,
+  },
+  deleteActionGlyph: {
+    color: RED,
+    fontFamily: 'monospace',
+    fontSize: 16,
+    fontWeight: 'bold',
+    textShadowColor: RED,
+    textShadowRadius: 6,
+    textShadowOffset: { width: 0, height: 0 },
+  },
+  deleteActionText: {
+    color: RED,
+    fontFamily: 'monospace',
+    fontSize: 10,
+    fontWeight: 'bold',
+    letterSpacing: 1,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.75)',
+    justifyContent: 'flex-end',
+  },
 })
-
 export default HabitScreen

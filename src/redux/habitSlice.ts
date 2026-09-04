@@ -16,7 +16,7 @@ const initialState = {
 };
 
 const habitSlice = createSlice({
-    name: "habits",
+    name: "habit",
     initialState,
     reducers: {
         addHabit: (state, action) => {
@@ -52,6 +52,6 @@ const habitSlice = createSlice({
     },
 });
 
-export const { addHabit, toggleHabit } = habitSlice.actions;
+export const { addHabit, toggleHabit, removeHabit, editHabit, clearHabits } = habitSlice.actions;
 
 export default habitSlice.reducer;
