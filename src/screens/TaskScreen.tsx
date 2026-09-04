@@ -10,6 +10,7 @@ import {
   Dimensions,
   Vibration,
 } from 'react-native';
+import { useNavigation, useRoute } from '@react-navigation/native';
 import React from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import {
@@ -28,6 +29,7 @@ import Reanimated, {
   SharedValue,
   useAnimatedStyle,
 } from 'react-native-reanimated';
+import Navigation from '../components/Nvigation';
 
 const NEON_GREEN = '#39FF14';
 const MUTED_GREEN = '#2E8B2E';
@@ -64,8 +66,10 @@ const TaskScreen = () => {
   const [isSearchFocused, setIsSearchFocused] = React.useState(false);
   const dispatch = useDispatch();
   const { width: SCREEN_WIDTH } = Dimensions.get('window');
-  // Width of a single "page" inside the horizontal pager — matches the
-  // container's horizontal padding (20 on each side) from contentContainer
+  const navigation = useNavigation();
+    const route = useRoute();
+    console.log('Current route:', route.name);
+
   const PAGE_WIDTH = SCREEN_WIDTH - 40;
 
   const handleCloseForm = () => {
@@ -165,75 +169,6 @@ const TaskScreen = () => {
         </Reanimated.View>
       );
     };
-
-  // const renderTaskCard = (task: Todo) => (
-  //   <View key={task.id} style={styles.taskCard}>
-  //     <View style={styles.taskTopRow}>
-  //       <Pressable onPress={() => handleToggleTask(task.id)}>
-  //         <Text
-  //           style={[
-  //             styles.checkbox,
-  //             task.completed && styles.checkboxDone,
-  //           ]}
-  //         >
-  //           {task.completed ? '✓' : '○'}
-  //         </Text>
-  //       </Pressable>
-  //       <Text
-  //         style={[
-  //           styles.taskTitle,
-  //           task.completed && styles.taskTitleDone,
-  //         ]}
-  //       >
-  //         {task.title}
-  //       </Text>
-  //     </View>
-
-  //     <View style={styles.taskMetaRow}>
-  //       <Pressable
-  //         style={styles.priorityPill}
-  //         onPress={() => handleChangePriority(task.id, task.priority)}
-  //       >
-  //         <View
-  //           style={[
-  //             styles.priorityDot,
-  //             { backgroundColor: PRIORITY_COLORS[task.priority] },
-  //           ]}
-  //         />
-  //         <Text style={styles.priorityText}>
-  //           {task.priority.toUpperCase()}
-  //         </Text>
-  //       </Pressable>
-
-  //       <Pressable
-  //         style={styles.dueBtn}
-  //         onPress={() => handleChangeDueDate(task.id)}
-  //       >
-  //         <Text style={styles.dueText}>
-  //           {task.dueLabel ? task.dueLabel : 'SET DATE'}
-  //         </Text>
-  //       </Pressable>
-  //     </View>
-
-  //     <View style={styles.taskActionsRow}>
-  //       <Pressable
-  //         style={styles.taskActionBtn}
-  //         onPress={() => handleEditTask(task.id)}
-  //       >
-  //         <Text style={styles.taskActionText}>EDIT</Text>
-  //       </Pressable>
-  //       <Pressable
-  //         style={[styles.taskActionBtn, styles.taskActionBtnDanger]}
-  //         onPress={() => handleRemoveTask(task.id)}
-  //       >
-  //         <Text style={[styles.taskActionText, styles.taskActionTextDanger]}>
-  //           DELETE
-  //         </Text>
-  //       </Pressable>
-  //     </View>
-  //   </View>
-  // );
-
   const renderTaskCard = (task: Todo) => (
     <ReanimatedSwipeable
       key={task.id}

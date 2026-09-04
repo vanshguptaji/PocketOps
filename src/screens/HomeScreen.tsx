@@ -1,6 +1,7 @@
 import { View, Text, StyleSheet, ScrollView, SafeAreaView, Pressable } from 'react-native';
 import React, { useState, useEffect } from 'react';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useRoute } from '@react-navigation/native';
+import Navigation from '../components/Nvigation';
 
 const NEON_GREEN = '#39FF14';
 const MUTED_GREEN = '#2E8B2E';
@@ -25,6 +26,8 @@ const ProgressBar = ({ value, total }: { value: number; total: number }) => {
 const HomeScreen = () => {
   const navigation = useNavigation();
   const [time, setTime] = useState(new Date());
+  const route = useRoute();
+  console.log('Current route:', route.name);
 
   useEffect(() => {
     const interval = setInterval(() => setTime(new Date()), 1000);
@@ -155,32 +158,6 @@ const HomeScreen = () => {
           </Text>
         </View>
       </ScrollView>
-
-      {/* Bottom nav */}
-      <View style={styles.bottomNav}>
-        <Pressable style={styles.navItem} onPress={() => navigation.navigate('Home' as never)}>
-          <View style={styles.navItemActive}>
-            <Text style={styles.navIconActive}>⌂</Text>
-            <Text style={styles.navLabelActive}>HOME</Text>
-          </View>
-        </Pressable>
-        <Pressable style={styles.navItem} onPress={() => navigation.navigate('Habit' as never)}>
-          <Text style={styles.navIcon}>▤</Text>
-          <Text style={styles.navLabel}>HABITS</Text>
-        </Pressable>
-        <Pressable style={styles.navItem} onPress={() => navigation.navigate('Tasks' as never)}>
-          <Text style={styles.navIcon}>▶</Text>
-          <Text style={styles.navLabel}>TASKS</Text>
-        </Pressable>
-        <Pressable style={styles.navItem} onPress={() => navigation.navigate('Profile' as never)}>
-          <Text style={styles.navIcon}>▮</Text>
-          <Text style={styles.navLabel}>STATS</Text>
-        </Pressable>
-        <Pressable style={styles.navItem} onPress={() => navigation.navigate('Expense' as never)}>
-          <Text style={styles.navIcon}>$</Text>
-          <Text style={styles.navLabel}>LOG</Text>
-        </Pressable>
-      </View>
     </SafeAreaView>
   );
 };
@@ -392,47 +369,6 @@ const styles = StyleSheet.create({
   },
   mutedText: {
     color: MUTED_GREEN,
-  },
-  bottomNav: {
-    flexDirection: 'row',
-    borderTopWidth: 1,
-    borderTopColor: BORDER_GRAY,
-    backgroundColor: '#000000',
-    paddingVertical: 10,
-  },
-  navItem: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  navItemActive: {
-    backgroundColor: NEON_GREEN,
-    borderRadius: 6,
-    paddingVertical: 6,
-    paddingHorizontal: 10,
-    alignItems: 'center',
-    width: '80%',
-  },
-  navIcon: {
-    color: MUTED_GREEN,
-    fontSize: 16,
-    marginBottom: 2,
-  },
-  navIconActive: {
-    color: '#000000',
-    fontSize: 16,
-    marginBottom: 2,
-  },
-  navLabel: {
-    color: MUTED_GREEN,
-    fontFamily: 'Courier',
-    fontSize: 9,
-  },
-  navLabelActive: {
-    color: '#000000',
-    fontFamily: 'Courier',
-    fontSize: 9,
-    fontWeight: 'bold',
   },
 });
 
