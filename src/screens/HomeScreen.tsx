@@ -1,21 +1,16 @@
-import { View, Text, StyleSheet, ScrollView, SafeAreaView, Pressable } from 'react-native';
 import React, { useState, useEffect } from 'react';
-import { useNavigation, useRoute } from '@react-navigation/native';
-import Navigation from '../components/Nvigation';
+import { View, Text, StyleSheet, ScrollView, SafeAreaView, Pressable } from 'react-native';
+import { useNavigation } from '@react-navigation/native';
+import { useSelector } from 'react-redux';
+import { RootState } from '../redux/store';
 
 const NEON_GREEN = '#39FF14';
 const MUTED_GREEN = '#2E8B2E';
 const ORANGE = '#FFA500';
 const BORDER_GRAY = '#1A1A1A';
 
-type Task = {
-  id: string;
-  label: string;
-  status: 'done' | 'pending' | 'critical';
-};
-
 const ProgressBar = ({ value, total }: { value: number; total: number }) => {
-  const pct = total === 0 ? 0 : (value / total) * 100;
+  const pct = total === 0 ? 0 : Math.min(100, (value / total) * 100);
   return (
     <View style={styles.progressTrack}>
       <View style={[styles.progressFill, { width: `${pct}%` }]} />
@@ -24,30 +19,34 @@ const ProgressBar = ({ value, total }: { value: number; total: number }) => {
 };
 
 const HomeScreen = () => {
-  const navigation = useNavigation();
+  const navigation = useNavigation<any>();
   const [time, setTime] = useState(new Date());
-  const route = useRoute();
-  console.log('Current route:', route.name);
+
+  const todos = useSelector((state: RootState) => state.todo.todos);
+  const habits = useSelector((state: RootState) => state.habit.habits);
+  const notes = useSelector((state: RootState) => state.note.notes);
+  const expenses = useSelector((state: RootState) => state.expense.expenses);
 
   useEffect(() => {
     const interval = setInterval(() => setTime(new Date()), 1000);
     return () => clearInterval(interval);
   }, []);
 
-  const tasks: Task[] = [
-    { id: '1', label: 'PROCESS_MAIL_INBOX', status: 'done' },
-    { id: '2', label: 'REVIEW_SYSTEM_ARCHITECT_DOCS', status: 'pending' },
-    { id: '3', label: 'CRITICAL_PATCH_DEPLOYMENT', status: 'critical' },
-    { id: '4', label: 'SYNC_WITH_DATABASE_TEAM', status: 'pending' },
-    { id: '5', label: 'END_OF_DAY_LOGOUT', status: 'pending' },
-  ];
+  // Compute live stats
+  const tasksDone = todos.filter((t) => t.completed).length;
+  const tasksTotal = todos.length;
 
-  const habitsDone = 1;
-  const habitsTotal = 5;
-  const tasksDone = tasks.filter(t => t.status === 'done').length;
-  const streak = 28;
+  const habitsDone = habits.filter((h) => h.done).length;
+  const habitsTotal = habits.length;
 
-  const date = time.toLocaleDateString(undefined, {
+  const bestStreak = habits.reduce((max, h) => Math.max(max, h.streak || 0), 0);
+
+  const todayStr = time.toISOString().split('T')[0];
+  const todaySpend = expenses
+    .filter((e) => e.date === todayStr)
+    .reduce((sum, e) => sum + e.amount, 0);
+
+  const dateStr = time.toLocaleDateString(undefined, {
     weekday: 'long',
     month: 'long',
     day: 'numeric',
@@ -79,19 +78,36 @@ const HomeScreen = () => {
 
         {/* Greeting */}
         <Text style={styles.greeting}>{getGreeting()} 👋</Text>
-        <Text style={styles.dateText}>{date}</Text>
+        <Text style={styles.dateText}>{dateStr}</Text>
 
-        {/* Summary cards */}
-        <View style={styles.summaryRow}>
+        {/* 4 Summary cards */}
+        <View style={styles.statsGrid}>
           <View style={styles.summaryCard}>
             <Text style={styles.summaryLabel}>TASKS</Text>
-            <Text style={styles.summaryValue}>{tasksDone}/{tasks.length}</Text>
-            <ProgressBar value={tasksDone} total={tasks.length} />
+            <Text style={styles.summaryValue}>
+              {tasksDone}/{tasksTotal}
+            </Text>
+            <ProgressBar value={tasksDone} total={tasksTotal} />
           </View>
           <View style={styles.summaryCard}>
             <Text style={styles.summaryLabel}>HABITS</Text>
-            <Text style={styles.summaryValue}>{habitsDone}/{habitsTotal}</Text>
+            <Text style={styles.summaryValue}>
+              {habitsDone}/{habitsTotal}
+            </Text>
             <ProgressBar value={habitsDone} total={habitsTotal} />
+          </View>
+        </View>
+
+        <View style={styles.statsGrid}>
+          <View style={styles.summaryCard}>
+            <Text style={styles.summaryLabel}>NOTES</Text>
+            <Text style={styles.summaryValue}>{notes.length}</Text>
+            <Text style={styles.subtext}>LOG ENTRIES</Text>
+          </View>
+          <View style={styles.summaryCard}>
+            <Text style={styles.summaryLabel}>TODAY'S SPEND</Text>
+            <Text style={styles.summaryValue}>₹{todaySpend.toFixed(0)}</Text>
+            <Text style={styles.subtext}>INR TOTAL</Text>
           </View>
         </View>
 
@@ -102,59 +118,77 @@ const HomeScreen = () => {
         </View>
 
         <View style={styles.taskList}>
-          {tasks.map(task => (
-            <View key={task.id} style={styles.taskRow}>
-              <Text
-                style={[
-                  styles.taskIcon,
-                  task.status === 'done' && styles.taskIconDone,
-                ]}
-              >
-                {task.status === 'done' ? '✓' : '○'}
-              </Text>
-              <Text
-                style={[
-                  styles.taskLabel,
-                  task.status === 'done' && styles.taskLabelDone,
-                  task.status === 'critical' && styles.taskLabelCritical,
-                ]}
-              >
-                {task.label}
-              </Text>
+          {todos.length === 0 ? (
+            <View style={styles.emptyTaskCard}>
+              <Text style={styles.emptyTaskText}>NO PENDING TASKS</Text>
             </View>
-          ))}
+          ) : (
+            todos.slice(0, 5).map((task) => (
+              <View key={task.id} style={styles.taskRow}>
+                <Text
+                  style={[
+                    styles.taskIcon,
+                    task.completed && styles.taskIconDone,
+                  ]}
+                >
+                  {task.completed ? '✓' : '○'}
+                </Text>
+                <Text
+                  style={[
+                    styles.taskLabel,
+                    task.completed && styles.taskLabelDone,
+                    task.priority === 'high' && styles.taskLabelCritical,
+                  ]}
+                >
+                  {task.title}
+                </Text>
+              </View>
+            ))
+          )}
         </View>
 
         {/* Streak card */}
         <View style={styles.streakCard}>
           <Text style={styles.streakEmoji}>🔥</Text>
           <View>
-            <Text style={styles.streakTitle}>{streak} Day Streak</Text>
+            <Text style={styles.streakTitle}>{bestStreak} Day Streak</Text>
             <Text style={styles.streakSubtitle}>Keep the chain alive</Text>
           </View>
         </View>
 
         {/* Quick actions */}
         <Text style={styles.quickActionsLabel}>QUICK ACTIONS</Text>
-        <View style={styles.quickActionsRow}>
+        <View style={styles.quickActionsGrid}>
           <Pressable
             style={styles.actionButton}
-            onPress={() => navigation.navigate('Tasks' as never)}
+            onPress={() => navigation.navigate('Tasks')}
           >
             <Text style={styles.actionButtonText}>+ TASK</Text>
           </Pressable>
           <Pressable
             style={styles.actionButton}
-            onPress={() => navigation.navigate('Habit' as never)}
+            onPress={() => navigation.navigate('Habit')}
           >
             <Text style={styles.actionButtonText}>+ HABIT</Text>
+          </Pressable>
+          <Pressable
+            style={styles.actionButton}
+            onPress={() => navigation.navigate('Notes')}
+          >
+            <Text style={styles.actionButtonText}>+ NOTE</Text>
+          </Pressable>
+          <Pressable
+            style={styles.actionButton}
+            onPress={() => navigation.navigate('Expense')}
+          >
+            <Text style={styles.actionButtonText}>+ EXPENSE</Text>
           </Pressable>
         </View>
 
         {/* Terminal prompt */}
         <View style={styles.terminalPrompt}>
           <Text style={styles.terminalText}>
-            <Text style={styles.mutedText}>~$ </Text>type 'help'
+            <Text style={styles.mutedText}>~$ </Text>pocketops ready
           </Text>
         </View>
       </ScrollView>
@@ -174,7 +208,7 @@ const styles = StyleSheet.create({
   contentContainer: {
     paddingHorizontal: 20,
     paddingTop: 16,
-    paddingBottom: 24,
+    paddingBottom: 30,
   },
   statusRow: {
     flexDirection: 'row',
@@ -219,10 +253,10 @@ const styles = StyleSheet.create({
     marginTop: 4,
     marginBottom: 20,
   },
-  summaryRow: {
+  statsGrid: {
     flexDirection: 'row',
     gap: 12,
-    marginBottom: 24,
+    marginBottom: 12,
   },
   summaryCard: {
     flex: 1,
@@ -243,7 +277,12 @@ const styles = StyleSheet.create({
     fontFamily: 'Courier',
     fontSize: 22,
     fontWeight: 'bold',
-    marginBottom: 10,
+    marginBottom: 8,
+  },
+  subtext: {
+    color: MUTED_GREEN,
+    fontFamily: 'Courier',
+    fontSize: 10,
   },
   progressTrack: {
     height: 4,
@@ -260,6 +299,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     marginBottom: 12,
+    marginTop: 12,
   },
   sectionDot: {
     width: 8,
@@ -276,6 +316,18 @@ const styles = StyleSheet.create({
   },
   taskList: {
     marginBottom: 24,
+  },
+  emptyTaskCard: {
+    padding: 16,
+    borderWidth: 1,
+    borderColor: BORDER_GRAY,
+    borderRadius: 4,
+    alignItems: 'center',
+  },
+  emptyTaskText: {
+    color: MUTED_GREEN,
+    fontFamily: 'Courier',
+    fontSize: 12,
   },
   taskRow: {
     flexDirection: 'row',
@@ -340,13 +392,14 @@ const styles = StyleSheet.create({
     letterSpacing: 1,
     marginBottom: 10,
   },
-  quickActionsRow: {
+  quickActionsGrid: {
     flexDirection: 'row',
-    gap: 12,
+    flexWrap: 'wrap',
+    gap: 10,
     marginBottom: 20,
   },
   actionButton: {
-    flex: 1,
+    width: '48%',
     borderWidth: 1,
     borderColor: NEON_GREEN,
     borderRadius: 4,
@@ -356,7 +409,7 @@ const styles = StyleSheet.create({
   actionButtonText: {
     color: NEON_GREEN,
     fontFamily: 'Courier',
-    fontSize: 13,
+    fontSize: 12,
     fontWeight: 'bold',
   },
   terminalPrompt: {

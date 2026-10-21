@@ -4,14 +4,17 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import HomeScreen from './screens/HomeScreen';
 import ExpenseScreen from './screens/ExpenseScreen';
 import HabitScreen from './screens/HabitScreen';
+import NoteListScreen from './screens/NoteListScreen';
 import NoteScreen from './screens/NoteScreen';
 import ProfileScreen from './screens/ProfileScreen';
 import TaskScreen from './screens/TaskScreen';
-import TabBar from './components/Nvigation';
+import SplashScreen from './screens/SplashScreen';
+import TabBar from './navigation/Nvigation';
 import { createStaticNavigation } from '@react-navigation/native';
-import { Provider } from "react-redux";
+import { Provider } from 'react-redux';
 import { store } from './redux/store';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import { StyleSheet } from 'react-native';
 
 const Tabs = createBottomTabNavigator({
   screenOptions: {
@@ -22,33 +25,39 @@ const Tabs = createBottomTabNavigator({
     Home: { screen: HomeScreen, options: { title: 'Home' } },
     Habit: { screen: HabitScreen, options: { title: 'Habit' } },
     Tasks: { screen: TaskScreen, options: { title: 'Tasks' } },
-    Profile: { screen: ProfileScreen, options: { title: 'Profile' } },
+    Notes: { screen: NoteListScreen, options: { title: 'Notes' } },
     Expense: { screen: ExpenseScreen, options: { title: 'Expense' } },
-  }
+    Profile: { screen: ProfileScreen, options: { title: 'Profile' } },
+  },
 });
 
 const RootStack = createNativeStackNavigator({
+  initialRouteName: 'Splash',
   screenOptions: {
     headerShown: false,
   },
   screens: {
+    Splash: {
+      screen: SplashScreen,
+      options: { headerShown: false },
+    },
     MainTabs: {
       screen: Tabs,
       options: { headerShown: false },
     },
-    Notes: {
+    NotesDetail: {
       screen: NoteScreen,
-      options: { title: 'Notes' },
+      options: { title: 'Note Details' },
     },
-  }
+  },
 });
 
 const Navigation = createStaticNavigation(RootStack);
 
 function App() {
   return (
-    <SafeAreaProvider>
-      <GestureHandlerRootView>
+    <SafeAreaProvider style={styles.container}>
+      <GestureHandlerRootView style={styles.container}>
         <Provider store={store}>
           <Navigation />
         </Provider>
@@ -56,5 +65,12 @@ function App() {
     </SafeAreaProvider>
   );
 }
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: '#000000',
+  },
+});
 
 export default App;

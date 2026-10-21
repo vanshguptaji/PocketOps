@@ -29,7 +29,6 @@ import Reanimated, {
   SharedValue,
   useAnimatedStyle,
 } from 'react-native-reanimated';
-import Navigation from '../components/Nvigation';
 
 const NEON_GREEN = '#39FF14';
 const MUTED_GREEN = '#2E8B2E';

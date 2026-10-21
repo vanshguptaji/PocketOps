@@ -1,5 +1,5 @@
-import { View, Text, StyleSheet, Pressable } from 'react-native'
-import React from 'react'
+import { View, Text, StyleSheet, Pressable } from 'react-native';
+import React from 'react';
 import type { BottomTabBarProps } from '@react-navigation/bottom-tabs';
 
 const NEON_GREEN = '#39FF14';
@@ -10,8 +10,9 @@ const NAV_ITEMS = [
   { name: 'Home', icon: '⌂', label: 'HOME' },
   { name: 'Habit', icon: '▤', label: 'HABITS' },
   { name: 'Tasks', icon: '▶', label: 'TASKS' },
+  { name: 'Notes', icon: '📝', label: 'NOTES' },
+  { name: 'Expense', icon: '💰', label: 'EXPENSES' },
   { name: 'Profile', icon: '▮', label: 'STATS' },
-  { name: 'Expense', icon: '$', label: 'LOG' },
 ] as const;
 
 const TabBar = ({ state, navigation }: BottomTabBarProps) => {
@@ -42,8 +43,8 @@ const TabBar = ({ state, navigation }: BottomTabBarProps) => {
         );
       })}
     </View>
-  )
-}
+  );
+};
 
 const styles = StyleSheet.create({
   bottomNav: {
@@ -61,32 +62,32 @@ const styles = StyleSheet.create({
   navItemActive: {
     backgroundColor: NEON_GREEN,
     borderRadius: 6,
-    paddingVertical: 6,
-    paddingHorizontal: 10,
+    paddingVertical: 4,
+    paddingHorizontal: 4,
     alignItems: 'center',
-    width: '80%',
+    width: '90%',
   },
   navIcon: {
     color: MUTED_GREEN,
-    fontSize: 16,
+    fontSize: 14,
     marginBottom: 2,
   },
   navIconActive: {
     color: '#000000',
-    fontSize: 16,
+    fontSize: 14,
     marginBottom: 2,
   },
   navLabel: {
     color: MUTED_GREEN,
     fontFamily: 'Courier',
-    fontSize: 9,
+    fontSize: 8,
   },
   navLabelActive: {
     color: '#000000',
     fontFamily: 'Courier',
-    fontSize: 9,
+    fontSize: 8,
     fontWeight: 'bold',
   },
-})
+});
 
-export default TabBar
+export default TabBar;

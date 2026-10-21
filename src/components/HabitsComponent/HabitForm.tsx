@@ -23,8 +23,11 @@ const HabitForm = ({ onClose, onSubmit, initialHabit }: HabitFormProps) => {
   );
   const [time, setTime] = useState(initialHabit?.time ?? '');
 
+  const [errorMsg, setErrorMsg] = useState('');
+
   const handleSubmit = () => {
     if (!title.trim()) {
+      setErrorMsg('⚠ TITLE_REQUIRED — Please enter a habit title');
       return;
     }
 
@@ -36,7 +39,7 @@ const HabitForm = ({ onClose, onSubmit, initialHabit }: HabitFormProps) => {
       done: initialHabit?.done ?? false,
       streak: initialHabit?.streak ?? 0,
       best: initialHabit?.best ?? 0,
-      segments: initialHabit?.segments ?? [],
+      segments: initialHabit?.segments ?? [false, false, false, false, false, false, false],
       completeDates: initialHabit?.completeDates ?? [],
     });
   };
@@ -46,16 +49,21 @@ const HabitForm = ({ onClose, onSubmit, initialHabit }: HabitFormProps) => {
       <Text style={styles.formTitle}>{isEditMode ? 'EDIT HABIT' : 'NEW HABIT'}</Text>
 
       {/* Title */}
-      <Text style={styles.label}>TITLE</Text>
+      <Text style={styles.label}>TITLE *</Text>
 
       <TextInput
-        style={styles.input}
+        style={[styles.input, !!errorMsg && styles.inputError]}
         value={title}
-        onChangeText={setTitle}
+        onChangeText={(t) => {
+          setTitle(t);
+          if (t.trim()) setErrorMsg('');
+        }}
         placeholder="e.g. 45MIN_DEEP_WORK"
         placeholderTextColor={MUTED_GREEN}
         autoCapitalize="characters"
+        selectionColor={NEON_GREEN}
       />
+      {errorMsg ? <Text style={styles.errorText}>{errorMsg}</Text> : null}
 
       {/* Frequency */}
       <Text style={styles.label}>FREQUENCY</Text>
@@ -140,6 +148,15 @@ const styles = StyleSheet.create({
     color: '#DDDDDD',
     fontFamily: 'Courier',
     fontSize: 13,
+  },
+  inputError: {
+    borderColor: '#FF4C4C',
+  },
+  errorText: {
+    color: '#FF4C4C',
+    fontFamily: 'Courier',
+    fontSize: 11,
+    marginTop: 4,
   },
 
   optionsRow: {

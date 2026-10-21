@@ -9,7 +9,7 @@ export interface Habit {
     segments: boolean[];
     completeDates: string[];
 }
-import { createSlice } from "@reduxjs/toolkit";
+import { createSlice, PayloadAction } from "@reduxjs/toolkit";
 
 const initialState = {
     habits: [] as Habit[],
@@ -48,10 +48,12 @@ const habitSlice = createSlice({
         clearHabits: (state) => {
             state.habits = [];
         },
-        
+        setHabits: (state, action: PayloadAction<Habit[]>) => {
+            state.habits = action.payload;
+        },
     },
 });
 
-export const { addHabit, toggleHabit, removeHabit, editHabit, clearHabits } = habitSlice.actions;
+export const { addHabit, toggleHabit, removeHabit, editHabit, clearHabits, setHabits } = habitSlice.actions;
 
 export default habitSlice.reducer;

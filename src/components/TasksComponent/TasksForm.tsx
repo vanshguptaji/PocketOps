@@ -22,8 +22,11 @@ const TaskForm = ({ onClose, onSubmit, initialTask }: TaskFormProps) => {
     initialTask?.section ?? 'Today'
   );
 
+  const [errorMsg, setErrorMsg] = useState('');
+
   const handleSubmit = () => {
     if (!title.trim()) {
+      setErrorMsg('⚠ TITLE_REQUIRED — Please enter a task title');
       return;
     }
 
@@ -42,15 +45,20 @@ const TaskForm = ({ onClose, onSubmit, initialTask }: TaskFormProps) => {
       <Text style={styles.formTitle}>{isEditMode ? 'EDIT TASK' : 'NEW TASK'}</Text>
 
       {/* Title */}
-      <Text style={styles.label}>TITLE</Text>
+      <Text style={styles.label}>TITLE *</Text>
 
       <TextInput
-        style={styles.input}
+        style={[styles.input, !!errorMsg && styles.inputError]}
         value={title}
-        onChangeText={setTitle}
+        onChangeText={(t) => {
+          setTitle(t);
+          if (t.trim()) setErrorMsg('');
+        }}
         placeholder={"Enter task title"}
         placeholderTextColor={MUTED_GREEN}
+        selectionColor={NEON_GREEN}
       />
+      {errorMsg ? <Text style={styles.errorText}>{errorMsg}</Text> : null}
 
       {/* Priority */}
       <Text style={styles.label}>PRIORITY</Text>
@@ -193,6 +201,15 @@ const styles = StyleSheet.create({
     color: '#DDDDDD',
     fontFamily: 'Courier',
     fontSize: 13,
+  },
+  inputError: {
+    borderColor: '#FF4C4C',
+  },
+  errorText: {
+    color: '#FF4C4C',
+    fontFamily: 'Courier',
+    fontSize: 11,
+    marginTop: 4,
   },
 
   optionsRow: {

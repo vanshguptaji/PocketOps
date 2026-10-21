@@ -101,6 +101,9 @@ export const todoSlice = createSlice({
         clearAllTodos: (state) => {
             state.todos = [];
         },
+        setTodos: (state, action: PayloadAction<Todo[]>) => {
+            state.todos = action.payload;
+        },
     },
 });
 
@@ -113,6 +116,7 @@ export const {
     setDueDate,
     clearCompletedTodo,
     clearAllTodos,
+    setTodos,
 } = todoSlice.actions;
 
 export default todoSlice.reducer;
